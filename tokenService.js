@@ -1,9 +1,9 @@
+// tokenService.js
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'clave-super-secreta-compartida';
 const EXPIRE_MINUTES = 5;
-const REFRESH_TTL_MINUTES = 60 * 24;
 
 const generarAccessToken = (username) => {
   return jwt.sign(
