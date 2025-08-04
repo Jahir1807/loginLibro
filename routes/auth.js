@@ -1,8 +1,11 @@
 const express = require('express');
 const User = require('../models/user');
 const router = express.Router();
+const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-// Registro (sin hasheo)
+let refreshTokensDB = []; // temporalmente en memoria
+
+// Registro
 router.post('/register', async (req, res) => {
   const { username, password, petName } = req.body;
 
@@ -11,7 +14,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Usuario ya existe' });
     }
 
-    // Guarda la contraseña en texto plano (¡SOLO PARA PRUEBAS!)
     const newUser = new User({ username, password, petName });
     await newUser.save();
 
@@ -22,29 +24,65 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login (comparación directa)
+// Login con tokens
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
     const user = await User.findOne({ username });
-    if (!user) {
+    if (!user || user.password !== password) {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
-    // Comparación en texto plano (¡SOLO PARA PRUEBAS!)
-    if (password !== user.password) {
-      return res.status(401).json({ message: 'Credenciales incorrectas' });
-    }
+    const accessToken = generarAccessToken(username);
+    const refreshToken = generarRefreshToken();
 
-    res.status(200).json({ message: 'Login exitoso' });
+    refreshTokensDB.push({
+      username,
+      refreshToken,
+      expires: Date.now() + (60 * 24 * 60 * 1000) // 1 día
+    });
+
+    res.status(200).json({ accessToken, refreshToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
 
-// Recuperación (muestra contraseña en texto plano)
+// Refresh token
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+
+  const tokenInfo = refreshTokensDB.find(t => t.refreshToken === refreshToken && t.expires > Date.now());
+
+  if (!tokenInfo) {
+    return res.status(403).json({ message: 'Refresh token inválido o expirado' });
+  }
+
+  // invalidar token anterior
+  refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
+
+  const newAccessToken = generarAccessToken(tokenInfo.username);
+  const newRefreshToken = generarRefreshToken();
+
+  refreshTokensDB.push({
+    username: tokenInfo.username,
+    refreshToken: newRefreshToken,
+    expires: Date.now() + (60 * 24 * 60 * 1000)
+  });
+
+  res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
+});
+
+// Logout
+router.post('/logout', (req, res) => {
+  const { refreshToken } = req.body;
+  refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
+  res.json({ message: 'Sesión cerrada correctamente' });
+});
+
+// Recuperar contraseña
 router.post('/recover', async (req, res) => {
   const { username, petName } = req.body;
 
@@ -54,7 +92,6 @@ router.post('/recover', async (req, res) => {
       return res.status(404).json({ message: 'Datos incorrectos' });
     }
 
-    // Devuelve la contraseña en texto plano (¡SOLO PARA PRUEBAS!)
     res.status(200).json({
       message: 'Datos validados correctamente',
       password: user.password
