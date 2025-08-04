@@ -1,10 +1,9 @@
-// routes/auth.js
 const express = require('express');
 const User = require('../models/user');
-const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 const router = express.Router();
+const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-let refreshTokensDB = []; // temporal
+let refreshTokensDB = []; // temporalmente en memoria
 
 // Registro
 router.post('/register', async (req, res) => {
@@ -25,7 +24,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login con tokens
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -51,8 +50,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Refresh
-router.post('/refresh', (req, res) => {
+// Refresh token
+router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
 
   const tokenInfo = refreshTokensDB.find(t => t.refreshToken === refreshToken && t.expires > Date.now());
@@ -61,6 +60,7 @@ router.post('/refresh', (req, res) => {
     return res.status(403).json({ message: 'Refresh token inválido o expirado' });
   }
 
+  // invalidar token anterior
   refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
 
   const newAccessToken = generarAccessToken(tokenInfo.username);
@@ -92,7 +92,10 @@ router.post('/recover', async (req, res) => {
       return res.status(404).json({ message: 'Datos incorrectos' });
     }
 
-    res.status(200).json({ message: 'Datos validados correctamente' });
+    res.status(200).json({
+      message: 'Datos validados correctamente',
+      password: user.password
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error en el servidor' });
