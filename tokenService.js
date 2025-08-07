@@ -8,7 +8,10 @@ const EXPIRE_MINUTES = 5;
 
 const generarAccessToken = (username) => {
   return jwt.sign(
-    { username },
+    {
+      username,
+      servicio: 'MicroservicioLibros'  
+    },
     SECRET_KEY,
     {
       expiresIn: `${EXPIRE_MINUTES}m`,

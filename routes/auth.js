@@ -3,7 +3,7 @@ const User = require('../models/user');
 const router = express.Router();
 const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-let refreshTokensDB = []; // temporalmente en memoria
+let refreshTokensDB = []; 
 
 // Registro
 router.post('/register', async (req, res) => {
