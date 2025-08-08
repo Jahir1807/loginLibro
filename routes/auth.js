@@ -1,13 +1,12 @@
-// routes/auth.js
 const express = require('express');
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const router = express.Router();
 const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-let refreshTokensDB = []; // Mejor usar base de datos para producción
+let refreshTokensDB = []; // Aquí podrías usar base de datos en producción
 
-// Registro de usuario con hashing
+// Registro
 router.post('/register', async (req, res) => {
   const { username, password, petName } = req.body;
 
@@ -27,7 +26,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login con tokens
+// Login
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -48,7 +47,7 @@ router.post('/login', async (req, res) => {
     refreshTokensDB.push({
       username,
       refreshToken,
-      expires: Date.now() + (60 * 24 * 60 * 60 * 1000) // 60 días en ms
+      expires: Date.now() + 60 * 24 * 60 * 60 * 1000 // 60 días en ms
     });
 
     res.status(200).json({ accessToken, refreshToken });
@@ -58,7 +57,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Refresh token
+// Refresh
 router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
 
@@ -68,7 +67,6 @@ router.post('/refresh', async (req, res) => {
     return res.status(403).json({ message: 'Refresh token inválido o expirado' });
   }
 
-  // Invalidar token anterior
   refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
 
   const newAccessToken = generarAccessToken(tokenInfo.username);
@@ -77,7 +75,7 @@ router.post('/refresh', async (req, res) => {
   refreshTokensDB.push({
     username: tokenInfo.username,
     refreshToken: newRefreshToken,
-    expires: Date.now() + (60 * 24 * 60 * 60 * 1000) // 60 días
+    expires: Date.now() + 60 * 24 * 60 * 60 * 1000
   });
 
   res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
@@ -90,7 +88,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Sesión cerrada correctamente' });
 });
 
-// Recuperar contraseña (no seguro, solo ejemplo)
+// Recuperar contraseña (solo ejemplo)
 router.post('/recover', async (req, res) => {
   const { username, petName } = req.body;
 
@@ -100,10 +98,9 @@ router.post('/recover', async (req, res) => {
       return res.status(404).json({ message: 'Datos incorrectos' });
     }
 
-    // OJO: Ideal enviar correo para recuperar, no devolver password directamente
     res.status(200).json({
       message: 'Datos validados correctamente',
-      password: user.password // En producción no enviar password en claro
+      password: user.password // NO recomendado en producción
     });
   } catch (err) {
     console.error(err);
