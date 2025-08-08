@@ -1,11 +1,13 @@
+// routes/auth.js
 const express = require('express');
+const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const router = express.Router();
 const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-let refreshTokensDB = []; 
+let refreshTokensDB = []; // Mejor usar base de datos para producción
 
-// Registro
+// Registro de usuario con hashing
 router.post('/register', async (req, res) => {
   const { username, password, petName } = req.body;
 
@@ -14,7 +16,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Usuario ya existe' });
     }
 
-    const newUser = new User({ username, password, petName });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword, petName });
     await newUser.save();
 
     res.status(201).json({ message: 'Usuario registrado correctamente' });
@@ -30,7 +33,12 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await User.findOne({ username });
-    if (!user || user.password !== password) {
+    if (!user) {
+      return res.status(401).json({ message: 'Credenciales incorrectas' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
@@ -40,7 +48,7 @@ router.post('/login', async (req, res) => {
     refreshTokensDB.push({
       username,
       refreshToken,
-      expires: Date.now() + (60 * 24 * 60 * 1000) // 1 día
+      expires: Date.now() + (60 * 24 * 60 * 60 * 1000) // 60 días en ms
     });
 
     res.status(200).json({ accessToken, refreshToken });
@@ -60,7 +68,7 @@ router.post('/refresh', async (req, res) => {
     return res.status(403).json({ message: 'Refresh token inválido o expirado' });
   }
 
-  // invalidar token anterior
+  // Invalidar token anterior
   refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
 
   const newAccessToken = generarAccessToken(tokenInfo.username);
@@ -69,7 +77,7 @@ router.post('/refresh', async (req, res) => {
   refreshTokensDB.push({
     username: tokenInfo.username,
     refreshToken: newRefreshToken,
-    expires: Date.now() + (60 * 24 * 60 * 1000)
+    expires: Date.now() + (60 * 24 * 60 * 60 * 1000) // 60 días
   });
 
   res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
@@ -82,7 +90,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Sesión cerrada correctamente' });
 });
 
-// Recuperar contraseña
+// Recuperar contraseña (no seguro, solo ejemplo)
 router.post('/recover', async (req, res) => {
   const { username, petName } = req.body;
 
@@ -92,9 +100,10 @@ router.post('/recover', async (req, res) => {
       return res.status(404).json({ message: 'Datos incorrectos' });
     }
 
+    // OJO: Ideal enviar correo para recuperar, no devolver password directamente
     res.status(200).json({
       message: 'Datos validados correctamente',
-      password: user.password
+      password: user.password // En producción no enviar password en claro
     });
   } catch (err) {
     console.error(err);
