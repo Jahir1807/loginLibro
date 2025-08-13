@@ -47,7 +47,7 @@ router.post('/login', async (req, res) => {
     refreshTokensDB.push({
       username,
       refreshToken,
-      expires: Date.now() + 60 * 24 * 60 * 60 * 1000 // 60 días en ms
+      expires: Date.now() + 60 * 24 * 60 * 60 * 1000
     });
 
     res.status(200).json({ accessToken, refreshToken });
