@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const SECRET_KEY = process.env.JWT_SECRET || 'clave-super-secreta-compartida';
 const ISSUER = 'http://auth.backend';
 const AUDIENCE = 'http://mis-servicios';
-const EXPIRE_MINUTES = 5;
+const EXPIRE_SECONDS = 10; // Access token expira en 10 segundos
 
 const generarAccessToken = (username) => {
   return jwt.sign(
@@ -17,7 +17,7 @@ const generarAccessToken = (username) => {
     },
     SECRET_KEY,
     {
-      expiresIn: `${EXPIRE_MINUTES}m`,
+      expiresIn: `${EXPIRE_SECONDS}s`, // expiración en segundos
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithm: 'HS256'

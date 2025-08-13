@@ -1,12 +1,12 @@
+// routes/auth.js
 const express = require('express');
-const bcrypt = require('bcrypt');
 const User = require('../models/user');
-const router = express.Router();
 const { generarAccessToken, generarRefreshToken } = require('../tokenService');
 
-let refreshTokensDB = []; // Aquí podrías usar base de datos en producción
+const router = express.Router();
+let refreshTokensDB = []; // almacenamiento en memoria
 
-// Registro
+// Registro (contraseña en texto plano)
 router.post('/register', async (req, res) => {
   const { username, password, petName } = req.body;
 
@@ -15,8 +15,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Usuario ya existe' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword, petName });
+    const newUser = new User({ username, password, petName });
     await newUser.save();
 
     res.status(201).json({ message: 'Usuario registrado correctamente' });
@@ -26,7 +25,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login (sin hash)
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -36,47 +35,55 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
-    if (!validPassword) {
+    if (password !== user.password) {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
     const accessToken = generarAccessToken(username);
     const refreshToken = generarRefreshToken();
 
+    // Refresh token expira en 1 minuto
     refreshTokensDB.push({
       username,
       refreshToken,
-      expires: Date.now() + 60 * 24 * 60 * 60 * 1000 // 60 días en ms
+      expires: Date.now() + 1 * 60 * 1000
     });
 
-    res.status(200).json({ accessToken, refreshToken });
+    console.log(`[AUTH] Usuario ${username} inició sesión. Access y refresh generados.`);
+
+    res.status(200).json({ accessToken, refreshToken, password }); // password solo para debug
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error en el servidor' });
   }
 });
 
-// Refresh
+// Refresh token
 router.post('/refresh', async (req, res) => {
   const { refreshToken } = req.body;
 
-  const tokenInfo = refreshTokensDB.find(t => t.refreshToken === refreshToken && t.expires > Date.now());
+  const tokenInfo = refreshTokensDB.find(
+    t => t.refreshToken === refreshToken && t.expires > Date.now()
+  );
 
   if (!tokenInfo) {
     return res.status(403).json({ message: 'Refresh token inválido o expirado' });
   }
 
+  // Eliminamos el viejo
   refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
 
   const newAccessToken = generarAccessToken(tokenInfo.username);
   const newRefreshToken = generarRefreshToken();
 
+  // Guardamos nuevo refresh con 1 minuto de vida
   refreshTokensDB.push({
     username: tokenInfo.username,
     refreshToken: newRefreshToken,
-    expires: Date.now() + 60 * 24 * 60 * 60 * 1000
+    expires: Date.now() + 1 * 60 * 1000
   });
+
+  console.log(`[AUTH] Refresh token renovado para ${tokenInfo.username}`);
 
   res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
 });
@@ -88,7 +95,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Sesión cerrada correctamente' });
 });
 
-// Recuperar contraseña (solo ejemplo)
+// Recuperar contraseña (muestra en texto plano)
 router.post('/recover', async (req, res) => {
   const { username, petName } = req.body;
 
@@ -100,7 +107,7 @@ router.post('/recover', async (req, res) => {
 
     res.status(200).json({
       message: 'Datos validados correctamente',
-      password: user.password // NO recomendado en producción
+      password: user.password
     });
   } catch (err) {
     console.error(err);
