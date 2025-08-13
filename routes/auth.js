@@ -2,9 +2,6 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const router = express.Router();
-const { generarAccessToken, generarRefreshToken } = require('../tokenService');
-
-let refreshTokensDB = []; 
 
 // Registro
 router.post('/register', async (req, res) => {
@@ -26,7 +23,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login sin tokens
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
@@ -41,51 +38,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales incorrectas' });
     }
 
-    const accessToken = generarAccessToken(username);
-    const refreshToken = generarRefreshToken();
-
-    refreshTokensDB.push({
-      username,
-      refreshToken,
-      expires: Date.now() + 60 * 24 * 60 * 60 * 1000
-    });
-
-    res.status(200).json({ accessToken, refreshToken });
+    // Retornamos datos básicos del usuario
+    res.status(200).json({ message: 'Login exitoso', username: user.username, petName: user.petName });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error en el servidor' });
   }
-});
-
-// Refresh
-router.post('/refresh', async (req, res) => {
-  const { refreshToken } = req.body;
-
-  const tokenInfo = refreshTokensDB.find(t => t.refreshToken === refreshToken && t.expires > Date.now());
-
-  if (!tokenInfo) {
-    return res.status(403).json({ message: 'Refresh token inválido o expirado' });
-  }
-
-  refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
-
-  const newAccessToken = generarAccessToken(tokenInfo.username);
-  const newRefreshToken = generarRefreshToken();
-
-  refreshTokensDB.push({
-    username: tokenInfo.username,
-    refreshToken: newRefreshToken,
-    expires: Date.now() + 60 * 24 * 60 * 60 * 1000
-  });
-
-  res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken });
-});
-
-// Logout
-router.post('/logout', (req, res) => {
-  const { refreshToken } = req.body;
-  refreshTokensDB = refreshTokensDB.filter(t => t.refreshToken !== refreshToken);
-  res.json({ message: 'Sesión cerrada correctamente' });
 });
 
 // Recuperar contraseña (solo ejemplo)
