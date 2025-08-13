@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const SECRET_KEY = process.env.JWT_SECRET || 'clave-super-secreta-compartida';
 const ISSUER = 'http://auth.backend';
 const AUDIENCE = 'http://mis-servicios';
-const EXPIRE_MINUTES = 5;
+const EXPIRE_MINUTES = 1;
 
 const generarAccessToken = (username) => {
   return jwt.sign(
