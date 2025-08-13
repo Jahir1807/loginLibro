@@ -2,14 +2,10 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-// Debe coincidir EXACTAMENTE con appsettings.json (.NET)
-const SECRET_KEY = process.env.JWT_SECRET || 'clave_super_secreto_con_mas_bits_y_seguridad_2025!';
-
+const SECRET_KEY = process.env.JWT_SECRET || 'clave-super-secreta-compartida';
 const ISSUER = 'http://auth.backend';
 const AUDIENCE = 'http://mis-servicios';
-
-// Access token de prueba: 10 segundos
-const ACCESS_EXPIRE_SECONDS = 10;
+const EXPIRE_MINUTES = 5;
 
 const generarAccessToken = (username) => {
   return jwt.sign(
@@ -21,7 +17,7 @@ const generarAccessToken = (username) => {
     },
     SECRET_KEY,
     {
-      expiresIn: `${ACCESS_EXPIRE_SECONDS}s`,
+      expiresIn: `${EXPIRE_MINUTES}m`,
       issuer: ISSUER,
       audience: AUDIENCE,
       algorithm: 'HS256'
